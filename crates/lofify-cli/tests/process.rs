@@ -1,4 +1,5 @@
 //! End-to-end test of `lofify process` through the real binary.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::process::Command;
 
