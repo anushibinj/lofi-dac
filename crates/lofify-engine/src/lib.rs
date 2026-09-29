@@ -7,6 +7,8 @@ pub mod cpal_backend;
 pub mod engine;
 pub mod error;
 pub mod feedback;
+#[cfg(target_os = "macos")]
+pub mod mac_tap;
 pub mod mapping;
 pub mod metrics;
 pub mod output;

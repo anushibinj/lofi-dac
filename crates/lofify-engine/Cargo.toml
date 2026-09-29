@@ -25,3 +25,9 @@ cpal = { version = "0.18.2", features = ["realtime"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cpal = "0.18.2"
+# Core Audio process tap (macOS 14.2+), used for system audio capture without a virtual driver.
+objc2 = "0.6"
+objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware", "AudioHardwareDeprecated", "objc2", "objc2-foundation"] }
+objc2-core-audio-types = { version = "0.3", default-features = false, features = ["std", "CoreAudioBaseTypes"] }
+objc2-core-foundation = "0.3.1"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSString", "NSValue", "NSProcessInfo", "NSUUID"] }
