@@ -1,0 +1,46 @@
+name: Release
+
+# Builds the Windows installer and the macOS app bundle. Run it by hand (workflow_dispatch) or by
+# pushing a tag such as v0.1.0. UNTESTED: this workflow has not been run.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build and package
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File packaging\windows\build-installer.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lofify-windows
+          path: dist/*.exe
+
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - name: Build universal app bundle
+        run: UNIVERSAL=1 packaging/macos/make-app.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lofify-macos
+          path: dist/*.zip
