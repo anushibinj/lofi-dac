@@ -113,7 +113,7 @@ fn audio_starts_once_prefilled_and_is_the_input_delayed_by_the_dsp_latency() {
         r.push(&input[tick * 960..(tick + 1) * 960]);
         out.extend(r.render(480));
     }
-    // Prefill of 960 frames means the first callback outputs silence, then audio flows.
+    // The first callbacks output silence while the ring fills, then audio flows.
     assert!(!r.shared.snapshot().waiting_for_audio);
     // Find the offset between input and output by exact matching.
     let out_l: Vec<f32> = out.chunks_exact(2).map(|f| f[0]).collect();
@@ -127,7 +127,9 @@ fn audio_starts_once_prefilled_and_is_the_input_delayed_by_the_dsp_latency() {
         assert_eq!(out_l[offset + n], in_l[n], "sample {n}");
     }
     // The delay is the DSP latency plus the prefill wait (one 480-frame callback of silence).
-    assert_eq!(offset, DSP_LATENCY + 480);
+    // Playback needs the 20 ms reserve *plus* the callback's own 10 ms, so it starts in the
+    // third callback: 2 x 480 frames of silence, then the 480 frame DSP delay.
+    assert_eq!(offset, 2 * 480 + DSP_LATENCY);
 }
 
 #[test]
@@ -212,11 +214,11 @@ fn overrun_drops_the_oldest_frames_and_bounds_latency() {
     assert_eq!(m.overruns, 1);
     assert_eq!(
         m.dropped_frames,
-        20_000 - 960,
-        "trimmed down to the 20 ms prefill"
+        20_000 - 1_440,
+        "trimmed down to the 20 ms reserve plus this 10 ms callback"
     );
     assert!(
-        m.ring_fill_ms <= 20.5,
+        m.ring_fill_ms <= 30.5,
         "latency must be bounded, ring holds {} ms",
         m.ring_fill_ms
     );
@@ -224,12 +226,12 @@ fn overrun_drops_the_oldest_frames_and_bounds_latency() {
         first.iter().all(|&v| v == 0.0),
         "still inside the DSP delay"
     );
-    // The audio that survives is the NEWEST: it starts at input frame 19 040. The first 480
+    // The audio that survives is the NEWEST: it starts at input frame 18 560. The first 480
     // frames it produced are still inside the 480-frame DSP delay, so the ramp appears in the
-    // next callback, starting exactly at input frame 19 040.
+    // next callback, starting exactly at input frame 18 560.
     let second = r.render(480);
     assert!(
-        (second[0] - 19_040.0 / 40_000.0).abs() < 1.0e-6,
+        (second[0] - 18_560.0 / 40_000.0).abs() < 1.0e-6,
         "expected the newest audio, got {}",
         second[0]
     );
@@ -442,8 +444,9 @@ fn different_sample_rates_keep_the_pitch_and_do_not_glitch() {
     assert_eq!(r.shared.overruns(), 0);
 }
 
-/// After the controller has converged (last third of the run) the ring must sit at the 20 ms
-/// prefill target, not merely somewhere safe.
+/// After the controller has converged (last third of the run) the ring must sit at its target:
+/// the 20 ms reserve, plus the resampler's 1.33 ms (64 frame) lookahead, plus the 10 ms callback
+/// that is about to be served, i.e. 31.3 ms before the pull, not merely somewhere safe.
 fn assert_settled_at_target(fills: &[f32]) {
     let settled = &fills[fills.len() * 2 / 3..];
     let mean = settled.iter().sum::<f32>() / settled.len() as f32;
@@ -451,11 +454,11 @@ fn assert_settled_at_target(fills: &[f32]) {
         .iter()
         .fold((f32::MAX, f32::MIN), |(a, b), &v| (a.min(v), b.max(v)));
     assert!(
-        (mean - 20.0).abs() < 2.5,
-        "mean ring fill {mean} ms is not at the 20 ms target"
+        (mean - 31.33).abs() < 2.5,
+        "mean ring fill {mean} ms is not at the 31.3 ms target"
     );
     assert!(
-        lo > 12.0 && hi < 30.0,
+        lo > 22.0 && hi < 41.0,
         "ring fill wandered between {lo} and {hi} ms"
     );
 }
@@ -506,19 +509,22 @@ fn without_compensation_a_slow_capture_clock_eventually_underruns() {
     assert!(r.shared.underruns() >= 1, "{:?}", r.shared.snapshot());
 }
 
-/// Underruns when capture stalls for `stall_ms` starting at `phase` ms into a callback period,
-/// then delivers everything it missed in one burst (what a delayed capture thread does).
+/// Underruns when capture, which delivers one 10 ms burst per period at `phase` ms into the
+/// callback period (the way real devices do), stalls for `stall_ms` and then delivers everything
+/// it missed at once (what a delayed capture thread does).
 fn underruns_with_stall(cfg: RendererConfig, stall_ms: usize, phase: usize) -> u64 {
     let mut r = rig(cfg);
     let stall_start = 300 + phase;
-    let mut backlog = 0usize;
+    let mut pending = 0usize;
     let mut written = 0usize;
     for ms in 0..600 {
-        backlog += 48; // capture produces 48 frames per millisecond
-        if !(stall_start..stall_start + stall_ms).contains(&ms) {
-            r.push(&sine(48_000.0, 300.0, written, backlog, 0.3));
-            written += backlog;
-            backlog = 0;
+        if ms % 10 == phase {
+            pending += 480; // a burst becomes ready
+        }
+        if !(stall_start..stall_start + stall_ms).contains(&ms) && pending > 0 {
+            r.push(&sine(48_000.0, 300.0, written, pending, 0.3));
+            written += pending;
+            pending = 0;
         }
         if ms % 10 == 9 {
             r.render(480);
@@ -527,30 +533,30 @@ fn underruns_with_stall(cfg: RendererConfig, stall_ms: usize, phase: usize) -> u
     r.shared.underruns()
 }
 
-/// The longest capture stall (in whole ms) that never causes an underrun at any phase.
+/// The longest capture stall (in whole ms) that never causes an underrun at any burst phase.
 fn max_tolerated_stall_ms(cfg: RendererConfig) -> usize {
-    for stall in 0..=20 {
+    for stall in 0..=30 {
         if (0..10).any(|phase| underruns_with_stall(cfg, stall, phase) > 0) {
             return stall.saturating_sub(1);
         }
     }
-    20
+    30
 }
 
 #[test]
-fn tolerates_capture_stalls_of_almost_one_callback_period() {
-    // With a 20 ms prefill and 10 ms callbacks the ring holds one callback period of slack. The
-    // drift-compensating resampler must not eat into it: its small chunks cost only ~1.3 ms
-    // (with 256-frame chunks it cost 5.3 ms and halved the margin, which showed up as
-    // underruns in the 10-minute soak test).
+fn tolerates_late_capture_bursts_at_every_phase() {
+    // Capture delivers a 10 ms burst per period and the burst can land anywhere relative to the
+    // output callback. With only a period of audio at callback time, a burst arriving just after
+    // the callback leaves ZERO margin (this showed up as underruns in the soak test). The 20 ms
+    // reserve is kept *after* each callback, so a burst may be almost 20 ms late.
     let plain = max_tolerated_stall_ms(exact_cfg());
     let nudged = max_tolerated_stall_ms(RendererConfig {
         drift_compensation: true,
         ..exact_cfg()
     });
-    assert!(plain >= 9, "without the resampler: {plain} ms");
+    assert!(plain >= 17, "without the resampler: {plain} ms");
     assert!(
-        nudged >= 8,
+        nudged >= 16,
         "with the drift-compensating resampler: {nudged} ms"
     );
 }

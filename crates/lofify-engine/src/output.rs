@@ -7,9 +7,15 @@
 //! State machine (all in the callback, allocation free):
 //!
 //! * `Waiting`: output is silence (the DSP chain still runs on silence so reverb tails ring out).
-//!   Once the ring holds `prefill` frames we switch to `Running` with a short input fade-in.
+//!   Once the ring holds `prefill` frames *in reserve on top of what this callback consumes* we
+//!   switch to `Running` with a short input fade-in.
 //! * `Running`: frames are pulled from the ring. If the ring cannot supply a full callback we
 //!   fade out what we have, output silence and go back to `Waiting` (re-prefill).
+//!
+//! `prefill` is the reserve kept in the ring **after** each callback has been served. Capture
+//! delivers audio in bursts (one device period at a time), so what protects against a late burst
+//! is the level *after* the pull, not the level before it: with only a period's worth of audio
+//! at the start of a callback, a burst that lands just after the callback leaves zero margin.
 //!
 //! A gap in capture data longer than half a second is *idle silence* (WASAPI loopback stops
 //! delivering packets when nothing is playing), so it is not counted as an underrun.
@@ -50,9 +56,10 @@ pub struct RendererConfig {
     pub capture_rate: u32,
     /// Sample rate of the output device.
     pub output_rate: u32,
-    /// Fill level (ms of capture audio) required before playback starts.
+    /// Audio (ms) kept in reserve in the ring after each callback. This is the margin against a
+    /// late capture burst, and (with the device buffers and DSP delay) sets the latency.
     pub prefill_ms: f32,
-    /// Fill level above which the oldest frames are dropped.
+    /// Ring level (ms) above which the oldest frames are dropped.
     pub max_fill_ms: f32,
     /// Fade-in applied to the output when the stream starts.
     pub startup_fade_ms: f32,
@@ -103,9 +110,12 @@ pub struct OutputRenderer {
     idle_frames: u64,
     frames_rendered: u64,
 
-    prefill_frames: usize,
+    /// Frames kept in the ring after each callback: the prefill plus the resampler's lookahead.
+    reserve_frames: usize,
     max_fill_frames: usize,
     fill_average: f32,
+    /// Frames served by the most recent callback.
+    last_frames: usize,
     /// Learned relative clock offset (the drift controller's integral term).
     drift_integral: f64,
 
@@ -150,8 +160,16 @@ impl OutputRenderer {
             None
         };
         let prefill_frames = ms_to_frames(cfg.prefill_ms, cfg.capture_rate).max(1);
+        // A callback can pull up to one resampler chunk more input than it outputs, so the
+        // reserve includes that lookahead; otherwise it would eat into the jitter margin.
+        let lookahead = if stage.is_some() {
+            crate::resample::CHUNK_FRAMES
+        } else {
+            0
+        };
+        let reserve_frames = prefill_frames + lookahead;
         let max_fill_frames =
-            ms_to_frames(cfg.max_fill_ms, cfg.capture_rate).max(prefill_frames + 1);
+            ms_to_frames(cfg.max_fill_ms, cfg.capture_rate).max(reserve_frames + 1);
         shared.set_rates(cfg.capture_rate, cfg.output_rate);
         shared.set_waiting(true);
         Ok(Self {
@@ -167,9 +185,10 @@ impl OutputRenderer {
             wait_since: 0,
             idle_frames: (IDLE_SECONDS * cfg.output_rate as f32) as u64,
             frames_rendered: 0,
-            prefill_frames,
+            reserve_frames,
             max_fill_frames,
-            fill_average: prefill_frames as f32,
+            fill_average: reserve_frames as f32,
+            last_frames: 0,
             drift_integral: 0.0,
             resume_fade_len: ms_to_frames(cfg.resume_fade_ms, cfg.output_rate),
             resume_fade_pos: 0,
@@ -255,20 +274,23 @@ impl OutputRenderer {
     fn acquire(&mut self, dst: &mut [f32]) {
         let frames = dst.len() / 2;
         let mut ring = self.consumer.slots() / 2;
+        // The level we want right before pulling: the reserve plus what this callback takes.
+        let target = self.reserve_frames + frames;
+        self.last_frames = frames;
 
-        if ring > self.max_fill_frames {
+        if ring > self.max_fill_frames.max(2 * target) {
             // Overrun: keep latency bounded by discarding the oldest frames.
-            let excess = ring - self.prefill_frames;
+            let excess = ring - target;
             self.discard(excess);
             self.shared.add_overrun(1);
             self.shared.add_dropped_frames(excess as u64);
-            self.fill_average = self.prefill_frames as f32;
+            self.fill_average = self.reserve_frames as f32;
             ring = self.consumer.slots() / 2;
         }
         self.shared.set_ring_fill(ring);
 
         if self.state == State::Waiting {
-            if ring < self.prefill_frames {
+            if ring < target {
                 dst.fill(0.0);
                 self.shared.set_waiting(true);
                 self.publish_latency();
@@ -340,13 +362,16 @@ impl OutputRenderer {
         }
     }
 
-    /// Nudges the resampling ratio so the ring settles at its prefill level (PI controller).
-    fn track_drift(&mut self, frames: usize, ring: usize) {
+    /// Nudges the resampling ratio so the ring reserve settles at its prefill level (PI
+    /// controller). It tracks the level *after* the pull, which is what protects against a late
+    /// capture burst.
+    fn track_drift(&mut self, frames: usize, ring_before: usize) {
         let dt = frames as f32 / self.capture_rate;
         let alpha = (dt / FILL_AVERAGE_SECONDS).min(1.0);
-        self.fill_average += alpha * (ring as f32 - self.fill_average);
+        let after = ring_before.saturating_sub(frames);
+        self.fill_average += alpha * (after as f32 - self.fill_average);
         if let Some(stage) = &mut self.stage {
-            let target = self.prefill_frames as f64;
+            let target = self.reserve_frames as f64;
             let error = (f64::from(self.fill_average) - target) / target;
             let limit = crate::resample::MAX_NUDGE;
             self.drift_integral =
@@ -358,7 +383,9 @@ impl OutputRenderer {
 
     fn publish_latency(&self) {
         let stage_frames = self.stage.as_ref().map_or(0, ResampleStage::delay_frames) as f32;
-        let seconds = self.fill_average / self.capture_rate
+        // A frame waits, on average, for the reserve plus half a callback's worth of audio.
+        let waiting = self.fill_average + self.last_frames as f32 * 0.5;
+        let seconds = waiting / self.capture_rate
             + (stage_frames + self.chain.latency_samples() as f32) / self.output_rate;
         let us = seconds * 1.0e6
             + self.shared.capture_latency_us() as f32
