@@ -5,6 +5,7 @@ pub mod biquad;
 pub mod crusher;
 pub mod filters;
 pub mod params;
+pub mod reverb;
 pub mod rng;
 pub mod saturation;
 pub mod shared;
