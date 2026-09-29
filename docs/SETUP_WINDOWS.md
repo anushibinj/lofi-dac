@@ -123,8 +123,8 @@ capture the same device it outputs to.
 
 | What | Location |
 | --- | --- |
-| Settings | `%APPDATA%\lofify\config\settings.toml` |
-| Log file | `%LOCALAPPDATA%\lofify\data\lofify.log` |
-| Your presets | `%APPDATA%\lofify\config\presets\` |
+| Settings | `%APPDATA%\Lofify\config\settings.toml` |
+| Log files (one per day) | `%LOCALAPPDATA%\Lofify\data\logs\lofify.log.<date>` |
+| Your presets | `%APPDATA%\Lofify\config\presets\` |
 
-(The exact paths come from the OS config directories and are shown in the app's About box.)
+(The exact paths come from the OS config directories and are shown at the bottom of the app's Settings panel.)
