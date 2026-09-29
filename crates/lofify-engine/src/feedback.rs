@@ -62,6 +62,8 @@ mod tests {
         assert!(matches!(err, EngineError::Feedback(m) if m.contains("virtual audio cable")));
         // any case
         assert!(check_feedback(&cable_capture(), &out("c", "my cable-b input")).is_err());
+        // macOS virtual drivers are refused too
+        assert!(check_feedback(&cable_capture(), &out("b", "BlackHole 16ch")).is_err());
     }
 
     #[test]

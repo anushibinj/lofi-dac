@@ -68,9 +68,14 @@ pub fn system_audio_device(sample_rate: Option<u32>) -> DeviceInfo {
     }
 }
 
-/// The feedback-protection test from the brief: a name containing "CABLE" (any case).
+/// The feedback-protection test: a name containing "CABLE" (any case), as required, plus the
+/// common macOS virtual drivers BlackHole and Soundflower. Audio sent to any of these comes
+/// straight back out of the driver's recording side.
 pub fn is_virtual_cable_name(name: &str) -> bool {
-    name.to_ascii_uppercase().contains("CABLE")
+    let upper = name.to_ascii_uppercase();
+    ["CABLE", "BLACKHOLE", "SOUNDFLOWER"]
+        .iter()
+        .any(|k| upper.contains(k))
 }
 
 /// How well a name matches a known virtual audio device family. Lower is better.
@@ -79,7 +84,10 @@ pub fn virtual_rank(name: &str) -> Option<u8> {
     let upper = name.to_ascii_uppercase();
     if upper.contains("CABLE") {
         Some(0)
-    } else if upper.contains("VOICEMEETER") {
+    } else if upper.contains("VOICEMEETER")
+        || upper.contains("BLACKHOLE")
+        || upper.contains("SOUNDFLOWER")
+    {
         Some(1)
     } else if upper.contains("VIRTUAL") {
         Some(2)
@@ -330,6 +338,8 @@ mod tests {
             "CABLE Input (VB-Audio Virtual Cable)"
         ));
         assert!(is_virtual_cable_name("cable-a output"));
+        assert!(is_virtual_cable_name("BlackHole 2ch"));
+        assert!(is_virtual_cable_name("Soundflower (64ch)"));
         assert!(!is_virtual_cable_name("Speakers (Realtek Audio)"));
         assert!(!is_virtual_cable_name("Headphones"));
     }
