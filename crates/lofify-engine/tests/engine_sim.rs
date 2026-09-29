@@ -488,3 +488,68 @@ fn dropping_the_engine_shuts_down_cleanly() {
     }
     assert!(start.elapsed() < Duration::from_secs(6));
 }
+
+#[test]
+fn the_macos_system_tap_is_preferred_and_opened_after_the_output() {
+    // The tap has to exclude Lofify's own process, which only exists in Core Audio once an
+    // output stream is playing. The simulated tap refuses to open before the output does, so a
+    // wrong order would leave the engine stuck waiting.
+    let world = SimWorld::new();
+    let out = world.add_output("MacBook Speakers", 48_000, 2, true);
+    world.add_input("CABLE Output (VB-Audio Virtual Cable)", 48_000, 2); // a cable must lose to the tap
+    world.add_system_tap(48_000);
+    let engine = engine_for(&world);
+    engine.set_devices(DeviceConfig {
+        capture: CaptureSelection::Auto,
+        output: OutputSelection::Named("MacBook Speakers".into()),
+    });
+    engine.start();
+    wait_for("running", Duration::from_secs(3), || running(&engine));
+    std::thread::sleep(Duration::from_millis(800));
+    let status = engine.status();
+    assert!(
+        status
+            .capture
+            .as_ref()
+            .unwrap()
+            .device_name
+            .starts_with("System Audio"),
+        "{:?}",
+        status.capture
+    );
+    assert_eq!((world.captures_opened(), world.outputs_opened()), (1, 1));
+    assert!(peak(&world.recorded(&out)) > 0.3);
+    engine.shutdown();
+}
+
+#[test]
+fn system_audio_can_be_chosen_by_name() {
+    let world = SimWorld::new();
+    let out = world.add_output("MacBook Speakers", 48_000, 2, true);
+    world.add_system_tap(48_000);
+    let engine = engine_for(&world);
+    engine.set_devices(DeviceConfig {
+        capture: CaptureSelection::Input(lofify_engine::types::SYSTEM_AUDIO_NAME.into()),
+        output: OutputSelection::Named("MacBook".into()),
+    });
+    engine.start();
+    wait_for("running", Duration::from_secs(3), || running(&engine));
+    std::thread::sleep(Duration::from_millis(600));
+    assert!(peak(&world.recorded(&out)) > 0.3);
+    engine.shutdown();
+}
+
+#[test]
+fn without_a_tap_or_cable_the_message_mentions_both_platforms() {
+    let world = SimWorld::new();
+    world.add_output("Speakers", 48_000, 2, true);
+    let engine = engine_for(&world);
+    engine.set_devices(speakers());
+    engine.start();
+    wait_for(
+        "waiting",
+        Duration::from_secs(2),
+        || matches!(engine.status().state, EngineState::Waiting(ref m) if m.contains("macOS 14.2") && m.contains("VB-Cable")),
+    );
+    engine.shutdown();
+}

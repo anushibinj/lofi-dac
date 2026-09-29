@@ -47,6 +47,14 @@ pub trait AudioBackend {
     /// Lists every visible endpoint, flagging the system defaults.
     fn list_devices(&self) -> Result<DeviceList>;
 
+    /// True if `target` can only be captured after the output stream exists. The macOS system
+    /// tap must exclude Lofify's own process from the tap, and the process only has a Core Audio
+    /// object once it is playing audio. For such targets the engine opens the output first and
+    /// takes the capture rate from `target.device.sample_rate`.
+    fn capture_needs_output_first(&self, _target: &CaptureTarget) -> bool {
+        false
+    }
+
     /// Starts capturing `target`, feeding every device buffer to `writer`.
     fn open_capture(
         &self,

@@ -12,8 +12,11 @@ pub enum EngineError {
     /// A named or default device does not exist (any more).
     #[error("audio device not found: {0}")]
     DeviceNotFound(String),
-    /// Auto-detection found no virtual audio cable input.
-    #[error("no virtual audio cable found (install VB-Cable, see docs/SETUP_WINDOWS.md)")]
+    /// Auto-detection found no capture source.
+    #[error(
+        "no capture source found: on Windows install a virtual audio cable (VB-Cable, see docs/SETUP_WINDOWS.md); \
+         on macOS system audio capture needs macOS 14.2 or newer"
+    )]
     NoVirtualCable,
     /// The system has no default playback device.
     #[error("there is no default output device")]

@@ -19,7 +19,8 @@ use std::time::{Duration, Instant};
 
 #[derive(Args, Debug, Clone)]
 pub struct EngineArgs {
-    /// Capture source: "auto" (detect the virtual cable), a recording device name, "loopback"
+    /// Capture source: "auto" (the macOS system tap, else the virtual cable), "system" (the macOS
+    /// system audio tap), a recording device name, "loopback"
     /// (default playback device) or "loopback:<playback device name>".
     #[arg(long, default_value = "auto")]
     pub capture: String,
@@ -83,6 +84,9 @@ pub fn parse_capture(s: &str) -> CaptureSelection {
     let t = s.trim();
     if t.eq_ignore_ascii_case("auto") {
         CaptureSelection::Auto
+    } else if t.eq_ignore_ascii_case("system") {
+        // The macOS system audio tap (macOS 14.2+).
+        CaptureSelection::Input(lofify_engine::types::SYSTEM_AUDIO_NAME.to_string())
     } else if t.eq_ignore_ascii_case("loopback") {
         CaptureSelection::Loopback(String::new())
     } else if let Some(name) = t.strip_prefix("loopback:") {
@@ -347,6 +351,10 @@ mod tests {
     fn capture_argument_parsing() {
         assert_eq!(parse_capture("auto"), CaptureSelection::Auto);
         assert_eq!(parse_capture("AUTO"), CaptureSelection::Auto);
+        assert_eq!(
+            parse_capture("system"),
+            CaptureSelection::Input("System Audio (Core Audio tap)".into())
+        );
         assert_eq!(
             parse_capture("loopback"),
             CaptureSelection::Loopback(String::new())

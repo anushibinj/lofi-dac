@@ -44,6 +44,28 @@ impl DeviceInfo {
     pub fn is_virtual_cable(&self) -> bool {
         is_virtual_cable_name(&self.name)
     }
+
+    /// True for the macOS system audio tap pseudo device.
+    pub fn is_system_audio(&self) -> bool {
+        self.id == SYSTEM_AUDIO_ID
+    }
+}
+
+/// Id of the pseudo capture device that stands for "all system audio" captured through a Core
+/// Audio process tap (macOS 14.2+). It needs no virtual cable and no driver.
+pub const SYSTEM_AUDIO_ID: &str = "coreaudio:system-audio-tap";
+
+/// Display name of the system audio tap, also what `--capture system` selects.
+pub const SYSTEM_AUDIO_NAME: &str = "System Audio (Core Audio tap)";
+
+/// Describes the system audio tap. `sample_rate` is the rate the tap will deliver, which is the
+/// rate of the default output device it is clocked from.
+pub fn system_audio_device(sample_rate: Option<u32>) -> DeviceInfo {
+    DeviceInfo {
+        sample_rate,
+        channels: Some(2),
+        ..DeviceInfo::new(SYSTEM_AUDIO_ID, SYSTEM_AUDIO_NAME, Direction::Input)
+    }
 }
 
 /// The feedback-protection test from the brief: a name containing "CABLE" (any case).
@@ -108,6 +130,11 @@ impl DeviceList {
         find_by_name(&self.outputs, name)
     }
 
+    /// The macOS system audio tap, when this machine supports it.
+    pub fn find_system_audio(&self) -> Option<&DeviceInfo> {
+        self.inputs.iter().find(|d| d.is_system_audio())
+    }
+
     /// Finds the recording side of a virtual cable: CABLE, then VoiceMeeter, then "Virtual".
     pub fn find_virtual_cable_input(&self) -> Option<&DeviceInfo> {
         self.inputs
@@ -130,7 +157,8 @@ impl DeviceList {
 /// Where audio is captured from.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum CaptureSelection {
-    /// Auto-detect a virtual cable's recording endpoint (CABLE, VoiceMeeter, "Virtual").
+    /// The best source for this machine: the system audio tap on macOS 14.2+, otherwise a
+    /// virtual cable's recording endpoint (CABLE, VoiceMeeter, "Virtual").
     #[default]
     Auto,
     /// A recording device by name, e.g. "CABLE Output (VB-Audio Virtual Cable)".
@@ -170,7 +198,8 @@ impl CaptureSelection {
     pub fn resolve(&self, devices: &DeviceList) -> Result<CaptureTarget> {
         match self {
             CaptureSelection::Auto => devices
-                .find_virtual_cable_input()
+                .find_system_audio()
+                .or_else(|| devices.find_virtual_cable_input())
                 .map(|d| CaptureTarget {
                     device: d.clone(),
                     loopback: false,
@@ -422,6 +451,27 @@ mod tests {
                 .unwrap_err(),
             EngineError::NoDefaultOutput
         );
+    }
+
+    #[test]
+    fn auto_prefers_the_system_tap_over_a_cable() {
+        let mut list = windows_like();
+        assert!(
+            !CaptureSelection::Auto
+                .resolve(&list)
+                .unwrap()
+                .device
+                .is_system_audio()
+        );
+        list.inputs.push(system_audio_device(Some(48_000)));
+        let t = CaptureSelection::Auto.resolve(&list).unwrap();
+        assert!(t.device.is_system_audio() && !t.loopback);
+        assert_eq!(t.device.sample_rate, Some(48_000));
+        // and it can be chosen by name (`--capture system`)
+        let named = CaptureSelection::Input(SYSTEM_AUDIO_NAME.into())
+            .resolve(&list)
+            .unwrap();
+        assert_eq!(named.device.id, SYSTEM_AUDIO_ID);
     }
 
     #[test]

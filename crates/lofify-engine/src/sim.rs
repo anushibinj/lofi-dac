@@ -12,7 +12,9 @@ use crate::backend::{AudioBackend, CaptureSource, OutputRequest, OutputSink, Ren
 use crate::capture::CaptureWriter;
 use crate::error::{EngineError, Result};
 use crate::output::OutputRenderer;
-use crate::types::{CaptureTarget, DeviceInfo, DeviceList, Direction, OutputFormat, StreamInfo};
+use crate::types::{
+    CaptureTarget, DeviceInfo, DeviceList, Direction, OutputFormat, StreamInfo, system_audio_device,
+};
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
@@ -158,6 +160,22 @@ impl SimWorld {
     /// Adds a recording device and returns its id.
     pub fn add_input(&self, name: &str, rate: u32, channels: u16) -> String {
         self.add(name, Direction::Input, rate, channels, false)
+    }
+
+    /// Adds the macOS-style system audio tap. Like the real one it can only be opened after an
+    /// output stream exists (Lofify needs its own audio process object to exclude itself).
+    pub fn add_system_tap(&self, rate: u32) -> String {
+        let mut w = lock(&self.world);
+        let info = system_audio_device(Some(rate));
+        let id = info.id.clone();
+        w.devices.push(SimDevice {
+            info,
+            rate,
+            channels: 2,
+            accepts_any_rate: false,
+            alive: Arc::new(AtomicBool::new(true)),
+        });
+        id
     }
 
     /// Adds a playback device and returns its id. `accepts_any_rate` mimics WASAPI's automatic

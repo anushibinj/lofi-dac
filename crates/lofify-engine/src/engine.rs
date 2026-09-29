@@ -462,7 +462,42 @@ fn session_info(session: &Session, capture: bool) -> StreamInfo {
     }
 }
 
+/// Builds the renderer factory a backend calls once the output format is known.
+fn renderer_factory(
+    consumer: rtrb::Consumer<f32>,
+    params: &Arc<SharedParams>,
+    shared: &Arc<Shared>,
+    config: &EngineConfig,
+    capture_rate: u32,
+) -> RendererFactory {
+    let (params, shared, config) = (params.clone(), shared.clone(), *config);
+    Box::new(move |format| {
+        OutputRenderer::new(
+            consumer,
+            params,
+            shared,
+            RendererConfig {
+                capture_rate,
+                output_rate: format.sample_rate,
+                prefill_ms: config.prefill_ms,
+                max_fill_ms: config.max_fill_ms,
+                startup_fade_ms: config.startup_fade_ms,
+                resume_fade_ms: config.resume_fade_ms,
+                drift_compensation: config.drift_compensation,
+                chain: ChainConfig {
+                    base_delay_ms: config.base_delay_ms,
+                    ..ChainConfig::default()
+                },
+            },
+        )
+    })
+}
+
 /// Resolves devices, applies feedback protection, then opens capture and output.
+///
+/// Normally capture opens first so the output can ask for the capture's sample rate. Targets
+/// that need the output to exist first (the macOS system tap) reverse the order and use the
+/// rate announced in the device listing; a mismatch is reported as an error.
 fn start_session(
     backend: &dyn AudioBackend,
     devices: &DeviceConfig,
@@ -479,40 +514,43 @@ fn start_session(
     // Forget errors left over from a previous session.
     let _ = shared.take_errors();
     let writer = CaptureWriter::new(producer, shared.clone());
-    let capture = backend.open_capture(&target, writer)?;
-    let capture_rate = capture.info().sample_rate;
+    let buffer = config.buffer;
 
-    let factory: RendererFactory = {
-        let (params, shared, config) = (params.clone(), shared.clone(), *config);
-        Box::new(move |format| {
-            OutputRenderer::new(
-                consumer,
-                params,
-                shared,
-                RendererConfig {
-                    capture_rate,
-                    output_rate: format.sample_rate,
-                    prefill_ms: config.prefill_ms,
-                    max_fill_ms: config.max_fill_ms,
-                    startup_fade_ms: config.startup_fade_ms,
-                    resume_fade_ms: config.resume_fade_ms,
-                    drift_compensation: config.drift_compensation,
-                    chain: ChainConfig {
-                        base_delay_ms: config.base_delay_ms,
-                        ..ChainConfig::default()
-                    },
-                },
-            )
-        })
+    let (capture, output) = if backend.capture_needs_output_first(&target) {
+        let capture_rate = target.device.sample_rate.unwrap_or(48_000);
+        let factory = renderer_factory(consumer, params, shared, config, capture_rate);
+        let output = backend.open_output(
+            &output_device,
+            OutputRequest {
+                preferred_rate: capture_rate,
+                buffer,
+            },
+            factory,
+        )?;
+        let capture = backend.open_capture(&target, writer)?;
+        if capture.info().sample_rate != capture_rate {
+            return Err(EngineError::UnsupportedFormat(format!(
+                "\"{}\" delivers {} Hz but {} Hz was expected",
+                target.device.name,
+                capture.info().sample_rate,
+                capture_rate
+            )));
+        }
+        (capture, output)
+    } else {
+        let capture = backend.open_capture(&target, writer)?;
+        let capture_rate = capture.info().sample_rate;
+        let factory = renderer_factory(consumer, params, shared, config, capture_rate);
+        let output = backend.open_output(
+            &output_device,
+            OutputRequest {
+                preferred_rate: capture_rate,
+                buffer,
+            },
+            factory,
+        )?;
+        (capture, output)
     };
-    let output = backend.open_output(
-        &output_device,
-        OutputRequest {
-            preferred_rate: capture_rate,
-            buffer: config.buffer,
-        },
-        factory,
-    )?;
     Ok(Session {
         _output: output,
         _capture: capture,
