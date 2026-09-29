@@ -96,3 +96,26 @@ holds the reserve *plus* the audio this callback consumes, the overrun trim and 
 aim at the same level, and the resampler's chunk lookahead (64 frames; 256 frames halved the margin)
 is included in the reserve. A late capture burst is now tolerated by up to about the reserve (18 ms
 at every phase in the tests).
+
+**D019 - GUI stack: eframe 0.35 with the `glow` renderer only, no AccessKit.** The default `wgpu`
+renderer roughly doubles the build and brings nothing a small control panel needs. AccessKit
+(screen-reader support) is left out to keep the build lean; it can be enabled with one feature flag.
+egui_plot 0.36 is used because 0.37 needs a newer Rust than the installed 1.94.
+
+**D020 - Hide-to-tray relies on `App::logic`.** eframe 0.35 documents that `App::logic` also runs while
+the window is hidden after `request_repaint()`. The tray menu and the hotkey handlers send an
+`AppCommand` on a channel and request a repaint; `logic` drains the channel, so Show, Toggle bypass
+and Quit work while the window is hidden. This is the one place where correct behaviour depends on
+OS event-loop details that could not be tested here (UNTESTED on real desktops).
+
+**D021 - The first-run wizard exists only on Windows.** It is the virtual-cable flow. macOS uses a
+Core Audio tap and needs no cable, so on other systems the wizard is skipped and marked done.
+
+**D022 - Single instance is a plain exit.** A second launch prints a message and exits with success;
+it does not signal the first instance to show its window (that needs IPC and was not worth the risk).
+The tray icon is the way back to the window.
+
+**D023 - Settings are TOML, saved atomically and debounced.** A corrupt settings file is never fatal:
+defaults are used, a warning is shown and the bad file is kept as `settings.toml.bad`. Devices are stored
+by name because ids change when drivers are reinstalled. Values loaded from disk are clamped to the
+valid ranges.
