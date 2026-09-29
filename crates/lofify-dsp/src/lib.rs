@@ -2,5 +2,6 @@
 #![forbid(unsafe_code)]
 
 pub mod biquad;
+pub mod params;
 pub mod rng;
 pub mod util;
