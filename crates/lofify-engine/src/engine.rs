@@ -28,7 +28,7 @@ use lofify_dsp::shared::SharedParams;
 use rtrb::RingBuffer;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Ring capacity in frames: 250 ms at the highest supported rate (192 kHz).
 const RING_FRAMES: usize = 48_000;
@@ -172,6 +172,7 @@ impl Engine {
                     wanted: false,
                     session: None,
                     last_message: None,
+                    retry_not_before: None,
                 };
                 match make_backend() {
                     Ok(b) => {
@@ -312,7 +313,14 @@ struct Controller {
     session: Option<Session>,
     /// Last state message, to avoid logging the same problem every poll.
     last_message: Option<String>,
+    /// After a problem that needs the user (an `Error` state), do not retry before this time.
+    /// Retrying every poll would, for example, keep re-triggering a pending macOS permission
+    /// prompt.
+    retry_not_before: Option<Instant>,
 }
+
+/// How long to wait before retrying after an `Error` state.
+const ERROR_RETRY: Duration = Duration::from_secs(5);
 
 impl Controller {
     fn run(&mut self, rx: &Receiver<Command>) {
@@ -394,6 +402,7 @@ impl Controller {
                 );
                 tracing::info!("running: \"{c}\" -> \"{o}\"");
                 self.last_message = None;
+                self.retry_not_before = None;
                 self.session = Some(session);
                 self.set_state(EngineState::Running);
             }
@@ -407,8 +416,14 @@ impl Controller {
                     EngineError::Feedback(_)
                     | EngineError::Unsupported(_)
                     | EngineError::PermissionDenied(_)
-                    | EngineError::UnsupportedFormat(_) => EngineState::Error(message),
-                    _ => EngineState::Waiting(message),
+                    | EngineError::UnsupportedFormat(_) => {
+                        self.retry_not_before = Some(Instant::now() + ERROR_RETRY);
+                        EngineState::Error(message)
+                    }
+                    _ => {
+                        self.retry_not_before = None;
+                        EngineState::Waiting(message)
+                    }
                 };
                 self.set_state(state);
             }
@@ -422,7 +437,9 @@ impl Controller {
             return;
         }
         let Some(session) = &self.session else {
-            self.try_start();
+            if self.retry_not_before.is_none_or(|t| Instant::now() >= t) {
+                self.try_start();
+            }
             return;
         };
         let (flags, message) = self.shared.take_errors();
