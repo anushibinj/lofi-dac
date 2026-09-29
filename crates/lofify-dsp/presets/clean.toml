@@ -1,0 +1,46 @@
+name = "Clean"
+description = "Every effect off. Transparent apart from a fixed 10 ms of latency."
+
+[input]
+trim_db = 0.0
+
+[tape]
+wow_cents = 0.0
+wow_hz = 0.5
+flutter_cents = 0.0
+flutter_hz = 6.5
+drift_cents = 0.0
+
+[saturation]
+drive = 0.0
+makeup_db = 0.0
+
+[crush]
+bits = 24.0
+sample_rate_hz = 192000.0
+dither = false
+
+[filters]
+hpf_enabled = false
+hpf_hz = 90.0
+lpf_enabled = false
+lpf_hz = 4500.0
+lpf_q = 0.7
+shelf_hz = 200.0
+shelf_db = 0.0
+
+[reverb]
+room = 0.5
+damping = 0.5
+mix = 0.0
+
+[vinyl]
+pops_per_sec = 0.0
+pop_db = -34.0
+hiss_db = -90.0
+
+[output]
+gain_db = 0.0
+
+[mix]
+wet_dry = 1.0

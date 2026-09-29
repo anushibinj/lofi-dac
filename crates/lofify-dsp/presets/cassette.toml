@@ -1,0 +1,46 @@
+name = "Cassette"
+description = "Worn tape: heavy wow and flutter, tape saturation and steady hiss, no crackle."
+
+[input]
+trim_db = 0.0
+
+[tape]
+wow_cents = 14.0
+wow_hz = 0.8
+flutter_cents = 5.0
+flutter_hz = 8.0
+drift_cents = 3.0
+
+[saturation]
+drive = 2.5
+makeup_db = 2.5
+
+[crush]
+bits = 15.0
+sample_rate_hz = 36000.0
+dither = true
+
+[filters]
+hpf_enabled = true
+hpf_hz = 60.0
+lpf_enabled = true
+lpf_hz = 6000.0
+lpf_q = 0.6
+shelf_hz = 250.0
+shelf_db = 1.5
+
+[reverb]
+room = 0.25
+damping = 0.7
+mix = 0.05
+
+[vinyl]
+pops_per_sec = 0.0
+pop_db = -40.0
+hiss_db = -40.0
+
+[output]
+gain_db = 0.0
+
+[mix]
+wet_dry = 1.0

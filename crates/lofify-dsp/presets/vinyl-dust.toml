@@ -1,0 +1,46 @@
+name = "Vinyl Dust"
+description = "Brighter and busy with pops, ticks and surface hiss, like a well-loved record."
+
+[input]
+trim_db = 0.0
+
+[tape]
+wow_cents = 6.0
+wow_hz = 0.6
+flutter_cents = 1.5
+flutter_hz = 6.0
+drift_cents = 1.0
+
+[saturation]
+drive = 1.0
+makeup_db = 0.5
+
+[crush]
+bits = 13.0
+sample_rate_hz = 32000.0
+dither = true
+
+[filters]
+hpf_enabled = true
+hpf_hz = 60.0
+lpf_enabled = true
+lpf_hz = 6500.0
+lpf_q = 0.7
+shelf_hz = 220.0
+shelf_db = 1.5
+
+[reverb]
+room = 0.35
+damping = 0.5
+mix = 0.08
+
+[vinyl]
+pops_per_sec = 14.0
+pop_db = -30.0
+hiss_db = -44.0
+
+[output]
+gain_db = 0.0
+
+[mix]
+wet_dry = 1.0

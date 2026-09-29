@@ -7,6 +7,7 @@ pub mod crusher;
 pub mod filters;
 pub mod limiter;
 pub mod params;
+pub mod presets;
 pub mod reverb;
 pub mod rng;
 pub mod saturation;
