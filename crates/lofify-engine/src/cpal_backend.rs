@@ -235,6 +235,12 @@ impl AudioBackend for CpalBackend {
                     list.outputs.push(info);
                 }
             }
+            #[cfg(target_os = "macos")]
+            if crate::mac_tap::supported() {
+                // Clocked by the default output device, so it delivers at that device's rate.
+                let rate = list.default_output().and_then(|d| d.sample_rate);
+                list.inputs.push(crate::types::system_audio_device(rate));
+            }
             Ok(list)
         })
     }
