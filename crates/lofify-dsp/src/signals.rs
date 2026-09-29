@@ -49,6 +49,25 @@ pub fn sine_sweep(sample_rate: f32, seconds: f32, f0: f32, f1: f32, amp: f32) ->
     out
 }
 
+/// A steady sine tone with 50 ms fades. Wow and flutter are easiest to hear on one.
+pub fn sine_tone(sample_rate: f32, seconds: f32, hz: f32, amp: f32) -> Vec<f32> {
+    let n = frames(sample_rate, seconds);
+    let fade = (0.05 * sample_rate) as usize;
+    let mut out = Vec::with_capacity(n * 2);
+    for i in 0..n {
+        let edge = i.min(n - 1 - i);
+        let env = if edge < fade {
+            edge as f32 / fade as f32
+        } else {
+            1.0
+        };
+        let v = amp * env * (TAU * hz * i as f32 / sample_rate).sin();
+        out.push(v);
+        out.push(v);
+    }
+    out
+}
+
 /// Pink noise (-3 dB/octave, independent channels) scaled to `rms_db` dBFS.
 pub fn pink_noise(sample_rate: f32, seconds: f32, rms_db: f32, seed: u32) -> Vec<f32> {
     let n = frames(sample_rate, seconds);
@@ -164,6 +183,18 @@ mod tests {
         assert!(p <= 0.5 + 1.0e-6 && p > 0.49, "peak {p}");
         assert_eq!(s[0], 0.0);
         assert!(s[s.len() - 2].abs() < 1.0e-3);
+    }
+
+    #[test]
+    fn tone_has_requested_frequency_and_level() {
+        let t = sine_tone(SR, 2.0, 440.0, 0.25);
+        assert!((peak(&t) - 0.25).abs() < 1.0e-3);
+        let crossings = t
+            .chunks_exact(2)
+            .zip(t[2..].chunks_exact(2))
+            .filter(|(a, b)| a[0] <= 0.0 && b[0] > 0.0)
+            .count();
+        assert!((crossings as i32 - 880).abs() <= 2, "{crossings}");
     }
 
     #[test]

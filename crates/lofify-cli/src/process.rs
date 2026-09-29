@@ -6,7 +6,7 @@ use clap::Args;
 use lofify_dsp::chain::Chain;
 use lofify_dsp::params::Params;
 use lofify_dsp::presets::{Preset, builtin_presets};
-use lofify_dsp::signals::{chords, peak, pink_noise, rms_dbfs, sine_sweep};
+use lofify_dsp::signals::{chords, peak, pink_noise, rms_dbfs, sine_sweep, sine_tone};
 use std::path::{Path, PathBuf};
 
 /// Size of the blocks fed to the chain, similar to a real audio callback.
@@ -38,7 +38,7 @@ pub struct ProcessArgs {
     #[arg(long, default_value_t = 10.0)]
     pub seconds: f32,
 
-    /// Skip the generated sweep, pink noise and chords.
+    /// Skip the generated sweep, pink noise, chords and 440 Hz tone.
     #[arg(long)]
     pub no_generated: bool,
 
@@ -131,6 +131,10 @@ fn generated(args: &ProcessArgs) -> Vec<(String, Audio)> {
             make(pink_noise(sr, args.seconds, -18.0, 1)),
         ),
         ("chords".to_string(), make(chords(sr, args.seconds, 0.5))),
+        (
+            "tone".to_string(),
+            make(sine_tone(sr, args.seconds, 440.0, 0.25)),
+        ),
     ]
 }
 
