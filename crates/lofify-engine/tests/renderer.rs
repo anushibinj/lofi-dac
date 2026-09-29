@@ -505,3 +505,52 @@ fn without_compensation_a_slow_capture_clock_eventually_underruns() {
     let (r, _) = drift_run(-800.0, false, 90);
     assert!(r.shared.underruns() >= 1, "{:?}", r.shared.snapshot());
 }
+
+/// Underruns when capture stalls for `stall_ms` starting at `phase` ms into a callback period,
+/// then delivers everything it missed in one burst (what a delayed capture thread does).
+fn underruns_with_stall(cfg: RendererConfig, stall_ms: usize, phase: usize) -> u64 {
+    let mut r = rig(cfg);
+    let stall_start = 300 + phase;
+    let mut backlog = 0usize;
+    let mut written = 0usize;
+    for ms in 0..600 {
+        backlog += 48; // capture produces 48 frames per millisecond
+        if !(stall_start..stall_start + stall_ms).contains(&ms) {
+            r.push(&sine(48_000.0, 300.0, written, backlog, 0.3));
+            written += backlog;
+            backlog = 0;
+        }
+        if ms % 10 == 9 {
+            r.render(480);
+        }
+    }
+    r.shared.underruns()
+}
+
+/// The longest capture stall (in whole ms) that never causes an underrun at any phase.
+fn max_tolerated_stall_ms(cfg: RendererConfig) -> usize {
+    for stall in 0..=20 {
+        if (0..10).any(|phase| underruns_with_stall(cfg, stall, phase) > 0) {
+            return stall.saturating_sub(1);
+        }
+    }
+    20
+}
+
+#[test]
+fn tolerates_capture_stalls_of_almost_one_callback_period() {
+    // With a 20 ms prefill and 10 ms callbacks the ring holds one callback period of slack. The
+    // drift-compensating resampler must not eat into it: its small chunks cost only ~1.3 ms
+    // (with 256-frame chunks it cost 5.3 ms and halved the margin, which showed up as
+    // underruns in the 10-minute soak test).
+    let plain = max_tolerated_stall_ms(exact_cfg());
+    let nudged = max_tolerated_stall_ms(RendererConfig {
+        drift_compensation: true,
+        ..exact_cfg()
+    });
+    assert!(plain >= 9, "without the resampler: {plain} ms");
+    assert!(
+        nudged >= 8,
+        "with the drift-compensating resampler: {nudged} ms"
+    );
+}

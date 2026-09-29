@@ -15,8 +15,10 @@ use rubato::{
     SincInterpolationType, WindowFunction,
 };
 
-/// Output frames produced per resampler call.
-pub const CHUNK_FRAMES: usize = 256;
+/// Output frames produced per resampler call. Kept small (1.3 ms at 48 kHz): a callback can pull up
+/// to one chunk more input than it needs, and that lookahead is deducted from the ring's jitter
+/// margin (256-frame chunks halved the margin).
+pub const CHUNK_FRAMES: usize = 64;
 /// Largest `pull` request the stage is sized for.
 pub const MAX_PULL_FRAMES: usize = 4096;
 /// The ratio may be nudged by at most this fraction either way.
