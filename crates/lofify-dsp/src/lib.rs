@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 pub mod biquad;
+pub mod chain;
 pub mod crusher;
 pub mod filters;
 pub mod limiter;

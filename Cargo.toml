@@ -31,3 +31,7 @@ panic = "unwind"
 
 [profile.dev.package."*"]
 opt-level = 1
+
+# DSP is far too slow at opt-level 0 for meaningful timing tests and debug listening.
+[profile.dev.package.lofify-dsp]
+opt-level = 3
