@@ -72,16 +72,6 @@ controller left the ring 40 % away from target at 400 ppm and dipped into an und
 now has an integral term that learns the clock offset, so the ring settles *at* its target (verified
 to within 2.5 ms for +-400 ppm in deterministic tests). The ratio is clamped to +-0.5 %.
 
-**D018 - The prefill is a reserve kept *after* each callback.** Capture delivers audio in bursts (one
-device period at a time), so the ring level right *before* a pull depends on whether a burst landed
-just before or just after the callback. With "start when the ring holds 20 ms", a burst arriving just
-after a callback left zero margin, which showed up as roughly one underrun every 10 seconds in a
-real-time soak test and was reproduced with a bursty-capture model. Playback now starts when the ring
-holds the reserve *plus* the audio this callback consumes, the overrun trim and the drift controller
-aim at the same level, and the resampler's chunk lookahead (64 frames; 256 frames halved the margin)
-is included in the reserve. A late capture burst is now tolerated by up to about the reserve (18 ms
-at every phase in the tests).
-
 **D015 - Panics never reach an audio thread.** All calls into cpal and both audio callbacks are wrapped
 in `catch_unwind` (cpal's own `description()` contains an `expect`, and a device unplugged during
 enumeration must not kill the engine thread). The audio path itself contains no `unwrap`, `expect`
@@ -96,3 +86,13 @@ timing.
 **D017 - Surround downmix is not normalised.** Stereo content on a 5.1/7.1 device only occupies the
 front pair and must keep its level, so centre and surrounds are added at -3 dB without dividing by
 the channel count. The output clamps, and the DSP limiter guards the wet path.
+
+**D018 - The prefill is a reserve kept *after* each callback.** Capture delivers audio in bursts (one
+device period at a time), so the ring level right *before* a pull depends on whether a burst landed
+just before or just after the callback. With "start when the ring holds 20 ms", a burst arriving just
+after a callback left zero margin, which showed up as roughly one underrun every 10 seconds in a
+real-time soak test and was reproduced with a bursty-capture model. Playback now starts when the ring
+holds the reserve *plus* the audio this callback consumes, the overrun trim and the drift controller
+aim at the same level, and the resampler's chunk lookahead (64 frames; 256 frames halved the margin)
+is included in the reserve. A late capture burst is now tolerated by up to about the reserve (18 ms
+at every phase in the tests).
