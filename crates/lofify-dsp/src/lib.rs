@@ -2,8 +2,10 @@
 #![forbid(unsafe_code)]
 
 pub mod biquad;
+pub mod crusher;
 pub mod params;
 pub mod rng;
+pub mod saturation;
 pub mod shared;
 pub mod tape;
 pub mod util;
