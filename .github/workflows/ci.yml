@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  check:
+    name: clippy + test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+
+      # Windows and macOS build and test the whole workspace.
+      - name: clippy (workspace)
+        if: matrix.os != 'ubuntu-latest'
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: test (workspace)
+        if: matrix.os != 'ubuntu-latest'
+        run: cargo test --workspace
+
+      # Ubuntu only builds the DSP crate and the CLI (Linux is not a target platform
+      # for the engine backends or the desktop app).
+      - name: clippy (dsp + cli)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo clippy -p lofify-dsp -p lofify-cli --all-targets -- -D warnings
+      - name: test (dsp + cli)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo test -p lofify-dsp -p lofify-cli
+
+  render-samples:
+    name: render sample WAVs
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo run --release -p lofify-cli -- process --preset all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lofify-rendered-samples
+          path: samples/out/
