@@ -2,6 +2,8 @@
 
 pub mod backend;
 pub mod capture;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub mod cpal_backend;
 pub mod engine;
 pub mod error;
 pub mod feedback;
