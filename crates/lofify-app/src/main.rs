@@ -1,5 +1,6 @@
 //! Lofify desktop application.
 
-fn main() {
-    println!("lofify-app {}", env!("CARGO_PKG_VERSION"));
+fn main() -> std::process::ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    lofify_app::launch::run(&args)
 }
