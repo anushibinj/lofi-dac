@@ -2,7 +2,7 @@
 
 use crate::rng::Rng;
 use crate::util::{db_to_lin, lin_to_db};
-use std::f32::consts::TAU;
+use std::f32::consts::{FRAC_1_SQRT_2, TAU};
 
 /// RMS level in dBFS of an interleaved buffer.
 pub fn rms_dbfs(samples: &[f32]) -> f32 {
@@ -119,8 +119,8 @@ pub fn chords(sample_rate: f32, seconds: f32, amp: f32) -> Vec<f32> {
             let env = (1.0 - (-t / 0.008).exp()) * (-t / tau).exp();
             let ph = TAU * freq * t;
             let v = level * env * (ph.sin() + 0.4 * (2.0 * ph).sin() + 0.15 * (3.0 * ph).sin());
-            buf[i * 2] += v * gl * 0.7071;
-            buf[i * 2 + 1] += v * gr * 0.7071;
+            buf[i * 2] += v * gl * FRAC_1_SQRT_2;
+            buf[i * 2 + 1] += v * gr * FRAC_1_SQRT_2;
         }
     };
 
