@@ -1,0 +1,8 @@
+# Link the C runtime statically on Windows so the installer does not depend on the Visual C++
+# redistributable. (An RUSTFLAGS environment variable replaces this, so the release workflow sets
+# the same flag explicitly.)
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
