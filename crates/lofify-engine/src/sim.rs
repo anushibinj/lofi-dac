@@ -335,7 +335,13 @@ impl OutputSink for SimOutput {
     }
 }
 
-const POLL: Duration = Duration::from_millis(2);
+/// Simulated threads wake up every 2 ms of *simulated* time, so the polling interval shrinks as
+/// the simulation is sped up; otherwise fast-forwarding would add scheduling jitter that no real
+/// device has.
+fn poll_interval(ctl: &Control) -> Duration {
+    let scale = f64::from_bits(ctl.time_scale.load(Ordering::Relaxed));
+    Duration::from_secs_f64((0.002 / scale).clamp(0.000_05, 0.002))
+}
 
 fn capture_loop(stop: &AtomicBool, dev: &SimDevice, ctl: &Arc<Control>, mut writer: CaptureWriter) {
     let clock = Clock::new(ctl, true);
@@ -345,7 +351,7 @@ fn capture_loop(stop: &AtomicBool, dev: &SimDevice, ctl: &Arc<Control>, mut writ
     let mut buf = vec![0.0f32; period as usize * channels];
     writer.set_device_latency(Duration::from_millis(10));
     while !stop.load(Ordering::Acquire) {
-        thread::sleep(POLL);
+        thread::sleep(poll_interval(ctl));
         if !dev.alive.load(Ordering::Acquire) {
             writer.report_error("capture device was removed");
             park_until(stop);
@@ -393,7 +399,7 @@ fn output_loop(
     renderer.set_device_latency(Duration::from_millis(10));
     let key = dev.info.id.clone();
     while !stop.load(Ordering::Acquire) {
-        thread::sleep(POLL);
+        thread::sleep(poll_interval(ctl));
         if !dev.alive.load(Ordering::Acquire) {
             renderer.report_error("output device was removed");
             park_until(stop);
