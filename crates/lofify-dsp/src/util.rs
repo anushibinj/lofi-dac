@@ -124,7 +124,7 @@ impl Smoothed {
 
     /// Advances one sample and returns the new value.
     #[inline]
-    pub fn next(&mut self) -> f32 {
+    pub fn tick(&mut self) -> f32 {
         let d = self.target - self.current;
         let next = self.current + d * self.coeff;
         // `next == current` means the increment fell below one ulp and the one-pole has stalled
@@ -169,7 +169,7 @@ mod tests {
         s.set_target(1.0);
         let mut steps = 0;
         while !s.is_settled() && steps < 48_000 {
-            s.next();
+            s.tick();
             steps += 1;
         }
         assert!(s.is_settled());
@@ -186,7 +186,7 @@ mod tests {
         let n = (0.010 * sr) as usize;
         let mut v = 0.0;
         for _ in 0..n {
-            v = s.next();
+            v = s.tick();
         }
         // One time constant reaches 1 - 1/e = 63.2 %.
         assert!((v - 0.632).abs() < 0.01, "v = {v}");
@@ -196,6 +196,6 @@ mod tests {
     fn smoother_ignores_nan() {
         let mut s = Smoothed::with_default_time(0.5, 48_000.0);
         s.set_target(f32::NAN);
-        assert_eq!(s.next(), 0.5);
+        assert_eq!(s.tick(), 0.5);
     }
 }
