@@ -91,8 +91,9 @@ cargo run --release -p lofify-cli -- passthrough --seconds 30 # no effects, prin
 cargo run --release -p lofify-cli -- process                  # writes samples/out/
 cargo run --release -p lofify-cli -- process -i song.wav -p "Late Night"
 
-# try the live path on any machine with a simulated Windows audio stack
-cargo run --release -p lofify-cli -- live --simulate --seconds 20
+# try the live path on any machine with a simulated Windows audio stack (its default output is the
+# cable, so name the speakers explicitly)
+cargo run --release -p lofify-cli -- live --simulate --output Speakers --seconds 20
 ```
 
 Checks that CI runs (and that must pass before a change is merged):
