@@ -59,18 +59,28 @@ gaps that recover count as one underrun each. On an underrun the audio already a
 out, silence is output and the ring is re-prefilled.
 
 **D013 - Latency budget vs the "under 30 ms" target.** The brief asks for a 10 ms tape base delay, a
-20 ms prefill and under 30 ms end to end. These cannot all hold: the defaults add up to about 40-55 ms
-(10 ms DSP + 20 ms ring + capture and output device buffers of about 10 ms each). The measured value
-is reported honestly in the UI and CLI. `--low-latency` (10 ms prefill, 3 ms tape delay) gets to
-about 25-35 ms on stable devices. The 10 ms base delay is a constant of the wet path and is
-compensated in the dry path, so it never causes comb filtering.
+20 ms prefill and under 30 ms end to end. These cannot all hold. Measured in the simulation with two
+10 ms device buffers, the default configuration is about **55 ms**: ~10 ms DSP delay, ~30 ms of audio
+waiting in the ring (the 20 ms reserve, plus half a 10 ms callback, plus the 1.3 ms resampler
+lookahead, on average), and 20 ms of device buffering. `--low-latency` (10 ms reserve, 3 ms tape
+delay) is about 40 ms. Real numbers depend on the devices and are shown live in the UI and CLI. The
+10 ms base delay is a constant of the wet path and is compensated in the dry path, so it never causes
+comb filtering.
 
 **D014 - Clock drift is absorbed by a PI controller on the resampling ratio.** A proportional-only
 controller left the ring 40 % away from target at 400 ppm and dipped into an underrun. The controller
-now has an integral term that learns the clock offset, so the ring settles *at* the 20 ms target
-(verified to within 2.5 ms for +-400 ppm in deterministic tests). The ratio is clamped to +-0.5 %.
-The resampler works in 64 frame chunks; 256 frame chunks halved the jitter margin (5 ms instead of
-10 ms), which showed up as underruns in a real-time soak test.
+now has an integral term that learns the clock offset, so the ring settles *at* its target (verified
+to within 2.5 ms for +-400 ppm in deterministic tests). The ratio is clamped to +-0.5 %.
+
+**D018 - The prefill is a reserve kept *after* each callback.** Capture delivers audio in bursts (one
+device period at a time), so the ring level right *before* a pull depends on whether a burst landed
+just before or just after the callback. With "start when the ring holds 20 ms", a burst arriving just
+after a callback left zero margin, which showed up as roughly one underrun every 10 seconds in a
+real-time soak test and was reproduced with a bursty-capture model. Playback now starts when the ring
+holds the reserve *plus* the audio this callback consumes, the overrun trim and the drift controller
+aim at the same level, and the resampler's chunk lookahead (64 frames; 256 frames halved the margin)
+is included in the reserve. A late capture burst is now tolerated by up to about the reserve (18 ms
+at every phase in the tests).
 
 **D015 - Panics never reach an audio thread.** All calls into cpal and both audio callbacks are wrapped
 in `catch_unwind` (cpal's own `description()` contains an `expect`, and a device unplugged during
