@@ -12,6 +12,7 @@ pub mod reverb;
 pub mod rng;
 pub mod saturation;
 pub mod shared;
+pub mod signals;
 pub mod tape;
 pub mod util;
 pub mod vinyl;
