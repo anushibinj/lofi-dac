@@ -1,0 +1,34 @@
+simulation: windows-like machine, speed x1, capture clock +150 ppm
+preset: Clean (passthrough)
+running; press Ctrl+C to stop (live: type `b` + Enter to toggle bypass, `preset <name>` to switch)
+
+[00:00] stopped  lat   0.0 ms  ring   0.0 ms  in [----------] out [----------]  underruns 0  overruns 0  restarts 0  audio no
+[00:30] running  lat  54.4 ms  ring  28.8 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[01:00] running  lat  57.9 ms  ring  29.3 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[01:30] running  lat  55.2 ms  ring  29.8 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[02:00] running  lat  56.4 ms  ring  30.7 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[02:30] running  lat  55.3 ms  ring  29.9 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[03:00] running  lat  56.0 ms  ring  30.7 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[03:30] running  lat  56.4 ms  ring  31.1 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[04:00] running  lat  55.8 ms  ring  30.5 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[04:30] running  lat  58.2 ms  ring  34.1 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[05:00] running  lat  56.2 ms  ring  30.9 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[05:30] running  lat  59.5 ms  ring  38.3 ms  in [#########-] out [#########-]  underruns 0  overruns 0  restarts 0  audio yes
+[06:00] running  lat  55.7 ms  ring  29.3 ms  in [#########-] out [#########-]  underruns 2  overruns 0  restarts 0  audio yes
+[06:30] running  lat  56.1 ms  ring  29.2 ms  in [#########-] out [#########-]  underruns 2  overruns 0  restarts 0  audio yes
+[07:00] running  lat  55.8 ms  ring  29.4 ms  in [#########-] out [#########-]  underruns 3  overruns 0  restarts 0  audio yes
+[07:30] running  lat  55.0 ms  ring  29.7 ms  in [#########-] out [#########-]  underruns 3  overruns 0  restarts 0  audio yes
+[08:00] running  lat  55.7 ms  ring  30.1 ms  in [#########-] out [#########-]  underruns 3  overruns 0  restarts 0  audio yes
+[08:30] running  lat  56.0 ms  ring  30.6 ms  in [#########-] out [#########-]  underruns 3  overruns 0  restarts 0  audio yes
+[09:00] running  lat  57.7 ms  ring  33.0 ms  in [#########-] out [#########-]  underruns 3  overruns 0  restarts 0  audio yes
+[09:30] running  lat  56.4 ms  ring  31.1 ms  in [#########-] out [#########-]  underruns 3  overruns 0  restarts 0  audio yes
+
+summary
+  audio time      600.0 s
+  underruns       3
+  overruns        0 (dropped 0 frames)
+  restarts        0
+  mean latency    56.3 ms
+  capture         CABLE Output (VB-Audio Virtual Cable) (48000 Hz, 2 ch)
+  output          Speakers (Realtek Audio) (48000 Hz, 2 ch)
+soak finished exit=0
