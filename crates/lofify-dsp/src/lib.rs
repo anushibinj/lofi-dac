@@ -5,4 +5,5 @@ pub mod biquad;
 pub mod params;
 pub mod rng;
 pub mod shared;
+pub mod tape;
 pub mod util;

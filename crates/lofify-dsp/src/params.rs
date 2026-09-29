@@ -230,7 +230,11 @@ impl Params {
                     d.tape.flutter_cents,
                 ),
                 flutter_hz: fix(self.tape.flutter_hz, &range::FLUTTER_HZ, d.tape.flutter_hz),
-                drift_cents: fix(self.tape.drift_cents, &range::DRIFT_CENTS, d.tape.drift_cents),
+                drift_cents: fix(
+                    self.tape.drift_cents,
+                    &range::DRIFT_CENTS,
+                    d.tape.drift_cents,
+                ),
             },
             saturation: SaturationParams {
                 drive: fix(self.saturation.drive, &range::DRIVE, d.saturation.drive),
