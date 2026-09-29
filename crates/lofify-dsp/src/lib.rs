@@ -11,3 +11,4 @@ pub mod saturation;
 pub mod shared;
 pub mod tape;
 pub mod util;
+pub mod vinyl;
