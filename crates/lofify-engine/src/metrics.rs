@@ -204,6 +204,21 @@ impl Shared {
         (flags, message)
     }
 
+    /// Zeroes the counters (not the meters) for a fresh run.
+    pub fn reset_counters(&self) {
+        for c in [
+            &self.underruns,
+            &self.overruns,
+            &self.dropped_frames,
+            &self.resample_errors,
+            &self.capture_frames,
+            &self.output_frames,
+        ] {
+            c.store(0, Ordering::Relaxed);
+        }
+        self.last_audio_frame.store(u64::MAX, Ordering::Relaxed);
+    }
+
     /// Copies everything into a plain struct.
     pub fn snapshot(&self) -> Metrics {
         let out_rate = self.output_rate.load(Ordering::Relaxed);
@@ -251,6 +266,18 @@ mod tests {
         s.add_dropped_frames(480);
         let m = s.snapshot();
         assert_eq!((m.underruns, m.overruns, m.dropped_frames), (3, 1, 480));
+    }
+
+    #[test]
+    fn counters_can_be_reset() {
+        let s = Shared::default();
+        s.add_underrun(4);
+        s.add_output_frames(100);
+        s.mark_audio(5);
+        s.reset_counters();
+        let m = s.snapshot();
+        assert_eq!((m.underruns, m.output_frames), (0, 0));
+        assert!(!m.audio_detected);
     }
 
     #[test]

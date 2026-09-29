@@ -1,5 +1,6 @@
 //! Audio I/O engine for Lofify: capture, ring buffer, DSP, output.
 
+pub mod backend;
 pub mod capture;
 pub mod error;
 pub mod feedback;
