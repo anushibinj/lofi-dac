@@ -1,6 +1,6 @@
 //! End-to-end tests of the engine control thread against the simulated backend: real threads,
 //! real ring buffers, real DSP, real reconnect logic.
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use lofify_dsp::params::Params;
 use lofify_dsp::shared::SharedParams;
