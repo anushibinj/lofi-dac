@@ -5,6 +5,7 @@ pub mod error;
 pub mod feedback;
 pub mod mapping;
 pub mod metrics;
+pub mod output;
 pub mod pcm;
 pub mod resample;
 pub mod types;

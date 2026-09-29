@@ -35,3 +35,6 @@ opt-level = 1
 # DSP is far too slow at opt-level 0 for meaningful timing tests and debug listening.
 [profile.dev.package.lofify-dsp]
 opt-level = 3
+
+[profile.dev.package.lofify-engine]
+opt-level = 3
