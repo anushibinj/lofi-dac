@@ -1,0 +1,18 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Rendered audio (regenerate with `cargo run -p lofify-cli -- process`)
+/samples/out/
+*.wav
+!/samples/in/**/*.wav
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Packaging output
+/dist/
+/installer/Output/
