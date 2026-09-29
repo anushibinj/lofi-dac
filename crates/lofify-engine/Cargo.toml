@@ -8,6 +8,21 @@ authors.workspace = true
 publish.workspace = true
 
 [dependencies]
+crossbeam-channel = "0.5.17"
+lofify-dsp = { version = "0.1.0", path = "../lofify-dsp" }
+rtrb = "0.4.0"
+rubato = "5.0.0"
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.21"
+tracing = "0.1.44"
 
 [lints]
 workspace = true
+
+# cpal is only built where Lofify has a real backend. Linux is out of scope and would need ALSA headers.
+[target.'cfg(target_os = "windows")'.dependencies]
+# `realtime` promotes the WASAPI callback threads through MMCSS.
+cpal = { version = "0.18.2", features = ["realtime"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cpal = "0.18.2"
