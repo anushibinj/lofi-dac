@@ -119,3 +119,19 @@ The tray icon is the way back to the window.
 defaults are used, a warning is shown and the bad file is kept as `settings.toml.bad`. Devices are stored
 by name because ids change when drivers are reinstalled. Values loaded from disk are clamped to the
 valid ranges.
+
+**D024 - macOS capture is a Core Audio process tap, opened after the output.** The tap must exclude
+Lofify's own process, which only has a Core Audio object once it is playing, so backends can declare
+`capture_needs_output_first`; the engine then opens the output first and uses the sample rate from
+the device listing (the default output device's rate, which also clocks the aggregate device). A rate
+mismatch is reported as an error. The system tap appears as the pseudo input device "System Audio
+(Core Audio tap)" and `Auto` prefers it over any cable. The macOS-only module is compile-checked
+and clippy-clean but UNTESTED: nothing in it has ever run against Core Audio.
+
+**D025 - Error states retry every 5 seconds, waiting states every poll.** Problems that need the user
+(feedback protection, unsupported platform, missing permission) are retried slowly so a pending macOS
+permission prompt is not re-triggered every 1.5 s. Missing devices are retried at the normal poll rate.
+
+**D026 - BlackHole and Soundflower count as virtual drivers for feedback protection.** The brief
+requires refusing outputs whose name contains "CABLE"; on macOS the common equivalents are BlackHole
+and Soundflower, so they are refused as outputs and ranked with VoiceMeeter for auto-detection.
