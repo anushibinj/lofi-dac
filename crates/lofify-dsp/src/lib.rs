@@ -3,6 +3,7 @@
 
 pub mod biquad;
 pub mod crusher;
+pub mod filters;
 pub mod params;
 pub mod rng;
 pub mod saturation;
