@@ -9,4 +9,5 @@ pub mod metrics;
 pub mod output;
 pub mod pcm;
 pub mod resample;
+pub mod sim;
 pub mod types;
