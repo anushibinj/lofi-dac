@@ -7,10 +7,20 @@ repository.workspace = true
 authors.workspace = true
 publish.workspace = true
 
+[lib]
+name = "lofify_app"
+path = "src/lib.rs"
+
+[[bin]]
+name = "lofify-app"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0.104"
 directories = "6.0.0"
-eframe = "0.35.0"
+# glow only: the default wgpu renderer roughly doubles the build for no benefit here.
+eframe = { version = "0.35.0", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+crossbeam-channel = "0.5.17"
 egui_plot = "0.36.0"
 lofify-dsp = { version = "0.1.0", path = "../lofify-dsp" }
 lofify-engine = { version = "0.1.0", path = "../lofify-engine" }
@@ -18,7 +28,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.6"
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
-tracing-subscriber = "0.3.23"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 [lints]
 workspace = true
@@ -30,4 +40,5 @@ single-instance = "0.3.3"
 tray-icon = "0.25.1"
 
 [dev-dependencies]
+egui_kittest = "0.35.0"
 tempfile = "3.27.0"
