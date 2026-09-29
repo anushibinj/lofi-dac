@@ -12,7 +12,6 @@ crossbeam-channel = "0.5.17"
 lofify-dsp = { version = "0.1.0", path = "../lofify-dsp" }
 rtrb = "0.4.0"
 rubato = "5.0.0"
-serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 tracing = "0.1.44"
 

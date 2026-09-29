@@ -3,3 +3,4 @@
 pub mod error;
 pub mod mapping;
 pub mod pcm;
+pub mod types;
