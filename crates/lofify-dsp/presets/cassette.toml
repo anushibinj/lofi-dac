@@ -13,7 +13,7 @@ drift_cents = 3.0
 
 [saturation]
 drive = 2.5
-makeup_db = 2.5
+makeup_db = 1.0
 
 [crush]
 bits = 15.0
