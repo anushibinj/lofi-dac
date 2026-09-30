@@ -135,3 +135,29 @@ permission prompt is not re-triggered every 1.5 s. Missing devices are retried a
 **D026 - BlackHole and Soundflower count as virtual drivers for feedback protection.** The brief
 requires refusing outputs whose name contains "CABLE"; on macOS the common equivalents are BlackHole
 and Soundflower, so they are refused as outputs and ranked with VoiceMeeter for auto-detection.
+
+**D027 - Windows needs a virtual device: loopback alone cannot silence the original sound.** OBS
+records desktop audio with no driver because WASAPI loopback is a *tap* on a playback endpoint's
+mix: it copies the audio and the original still reaches the speakers. OBS only listens, so that is
+fine for it. Lofify must *replace* the sound, so playing the processed copy on the same speakers
+would mix it with the untouched original, about 55 ms late (echo and comb filtering). Options
+considered (research only, nothing of this could be run here):
+
+* Mute or lower the speaker endpoint: whether loopback still sees the audio is inconsistent between
+  drivers and Windows versions, and it would mute Lofify's own output on the same endpoint.
+* Mute every other app's audio session and capture with process loopback (Windows 10 2004+, exclude
+  our own process tree): session volume and mute are applied before the mix, so muting an app also
+  changes what a loopback hears, and process loopback's behaviour there is undocumented. It would also
+  leave every app muted in the Volume Mixer after a crash. Not built.
+* Exclusive-mode output: shared-mode apps go silent, so there is nothing left to capture.
+* Cancel the original with an inverted copy: the copy is only known after the original has already
+  been mixed, so it can never arrive in time.
+* Ship our own virtual audio driver: still a driver install, and needs driver signing.
+
+Result: one virtual device (VB-Cable, or any existing one) stays the supported route, as in the brief.
+Two cases need no install at all: a playback endpoint nobody listens to (for example a monitor's
+HDMI audio with no speakers) can play the "tap" role, see docs/SETUP_WINDOWS.md. macOS is different
+because Core Audio's process tap can mute what it captures (D024), which is why it needs no driver.
+The remaining onboarding friction (switching the default playback device by hand) is what the
+optional auto-route in D010 would remove.
+
