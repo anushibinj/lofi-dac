@@ -103,7 +103,7 @@ capture the same device it outputs to.
 
 Windows can hand Lofify a copy of what any playback device plays (that is how OBS records desktop
 audio, no driver needed). But a copy is all it is: the original keeps playing on that device, and
-Windows offers no way to silence it while still copying it. So Lofify needs a playback device that
+Windows offers no reliable way to silence it while still copying it. So Lofify needs a playback device that
 you **cannot hear** to act as the "tap". Either:
 
 * **The virtual cable** (above). Works on every PC. One install, one time.
