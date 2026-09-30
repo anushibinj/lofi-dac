@@ -99,6 +99,24 @@ This behaves like recording CABLE Output. Recording loopback of your *real speak
 useful (you would hear the original and the processed audio together), and Lofify refuses to
 capture the same device it outputs to.
 
+## Can I skip the cable?
+
+Windows can hand Lofify a copy of what any playback device plays (that is how OBS records desktop
+audio, no driver needed). But a copy is all it is: the original keeps playing on that device, and
+Windows offers no way to silence it while still copying it. So Lofify needs a playback device that
+you **cannot hear** to act as the "tap". Either:
+
+* **The virtual cable** (above). Works on every PC. One install, one time.
+* **A playback device you never listen to.** If your PC has one (for example a monitor connected by
+  HDMI or DisplayPort that has no speakers, listed under Sound settings, Output), then:
+  1. Set that device as the Windows default playback device.
+  2. In Lofify, pick **Loopback: \<that device\>** as the capture source and your real speakers or
+     headphones as the output.
+  Nothing is installed. This has never been run on real hardware (UNTESTED), and it only works if the
+  device stays active (a monitor that is switched off may disappear from the list).
+
+Recording loopback of the speakers you are also listening on cannot work, and Lofify refuses it.
+
 ## Troubleshooting
 
 | Symptom | What to check |
