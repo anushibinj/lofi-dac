@@ -36,11 +36,14 @@ The desktop app adds a tray icon (closing the window hides it there), a global b
 
 ## How it works
 
-Windows has no public "capture everything" switch for a single app to flip, so Lofify uses the
-standard approach: a **virtual audio cable** (VB-Cable, not bundled, you install it yourself) becomes
-your default playback device, Lofify records from its other end, applies the effects and plays the
-result on your real output. On **macOS 14.2+** Lofify instead uses a Core Audio **process tap**, so no
-extra driver is needed, only the "System Audio Recording" permission.
+Capturing what the computer plays is easy (OBS does it with no driver). Replacing it is the hard part:
+Windows copies the audio for you but leaves the original playing, so processed and original sound
+would overlap. Lofify therefore uses a **virtual audio cable** on Windows (VB-Cable, not bundled, you
+install it yourself): it becomes the default playback device, Lofify records from its other end,
+applies the effects and plays the result on your real output. If your PC has a playback device you
+never listen to (a monitor's HDMI audio, say) that device can play the cable's role instead, with no
+install. On **macOS 14.2+** Lofify uses a Core Audio **process tap** that can mute what it captures, so
+no driver is needed at all, only the "System Audio Recording" permission. Why: [D027](docs/DECISIONS.md).
 
 ```
 apps -> default output (CABLE Input) => CABLE Output -> [capture] -> ring buffer -> DSP chain -> speakers
